@@ -3,7 +3,7 @@
 [![.NET Standard 2.0](https://img.shields.io/badge/.NET%20Standard-2.0-blue)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A .NET Standard 2.0 library that extracts media properties from video filenames. C# port of the Python [guessit](https://github.com/guessit-io/guessit) library.
+A .NET library that extracts media properties from video filenames. C# port of the Python [guessit](https://github.com/guessit-io/guessit) library.
 
 > **Note:** The original C# port (v0.1) is preserved in the [`v0.1` branch](https://github.com/rasyidf/Trka/tree/v0.1). This is a complete rewrite targeting modern .NET.
 
@@ -40,6 +40,39 @@ var anime = GuessIt.Guess("[SubGroup] Attack on Titan - 25 [1080p][HEVC].mkv");
 // anime.VideoCodec      = "H.265"
 ```
 
+### High-Performance Span Variant
+
+For hot paths, use `Terka.Span` which uses `ReadOnlySpan<char>` and `stackalloc` for minimal allocations:
+
+```csharp
+using Terka.Span;
+
+var result = SpanGuessIt.Guess("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv");
+// Same output, 5x faster, 46% less memory
+```
+
+## Benchmarks
+
+Tested on .NET 10.0, 30 mixed filenames (movies, episodes, anime):
+
+| Method | Mean | Allocated | vs Baseline |
+|--------|------|-----------|-------------|
+| **Terka** (netstandard2.0) | 366 µs | 117 KB | 1.00x |
+| **Terka.Span** (net10.0) | 73 µs | 63 KB | **5x faster** |
+| **Python guessit** (estimated) | ~60,000–150,000 µs | — | ~200–400x slower |
+
+Run benchmarks yourself:
+
+```bash
+# C# benchmarks
+cd benchmarks/Terka.Benchmarks
+dotnet run -c Release -- --filter *GuessItBenchmarks*
+
+# Python comparison
+pip install guessit
+python benchmarks/benchmark_guessit.py
+```
+
 ## Detected Properties
 
 | Property | Examples |
@@ -60,6 +93,19 @@ var anime = GuessIt.Guess("[SubGroup] Attack on Titan - 25 [1080p][HEVC].mkv");
 | Color Depth | 10-bit, 8-bit |
 | Other | Remux, HDR10, Dolby Vision, Proper |
 
+## Project Structure
+
+```
+src/
+  Terka/              # Main library (netstandard2.0, zero dependencies)
+  Terka.Span/         # High-perf Span<T> variant (net10.0)
+tests/
+  Terka.Tests/        # xUnit tests
+benchmarks/
+  Terka.Benchmarks/   # BenchmarkDotNet comparisons
+  benchmark_guessit.py # Python guessit benchmark
+```
+
 ## Installation
 
 ```
@@ -69,13 +115,6 @@ dotnet add package Terka
 Or reference the project directly:
 ```xml
 <ProjectReference Include="path/to/src/Terka/Terka.csproj" />
-```
-
-## Dictionary Output
-
-```csharp
-var dict = GuessIt.GuessDict("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv");
-// Returns Dictionary<string, object> matching guessit Python output format
 ```
 
 ## Options

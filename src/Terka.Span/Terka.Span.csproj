@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PackageId>Terka.Span</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>rasyidf</Authors>
+    <Description>High-performance Span-based variant of Terka (GuessIt.NET). Zero-allocation tokenizer and matchers using ReadOnlySpan&lt;char&gt;.</Description>
+  </PropertyGroup>
+
+</Project>

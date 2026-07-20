@@ -9,7 +9,7 @@
     <Description>GuessIt for .NET — extract media properties (title, year, season, episode, codec, source, etc.) from video filenames. A C# port of the Python guessit library.</Description>
     <PackageTags>guessit;media;filename;parser;video;movie;episode;metadata</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/rasyidf/Trka</RepositoryUrl>
+    <RepositoryUrl>https://github.com/rasyidf/Terka</RepositoryUrl>
   </PropertyGroup>
 
 </Project>
