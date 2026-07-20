@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Terka.Benchmarks/Terka.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Terka.Span/Terka.Span.csproj" />
+    <Project Path="src/Terka/Terka.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Terka.Tests/Terka.Tests.csproj" />
+  </Folder>
+</Solution>
