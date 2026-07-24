@@ -1,67 +1,47 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using Terka.Shared;
 
 namespace Terka.Span;
 
 /// <summary>
-/// High-performance dictionary matcher using ReadOnlySpan comparisons.
-/// Uses a pre-sorted array for binary-search-like lookup with span keys.
+/// High-performance dictionary matcher using FrozenDictionary with AlternateLookup.
+/// Zero-allocation span-based lookups — no string created per match attempt.
+/// All dictionaries sourced from <see cref="Vocabulary"/> (single source of truth).
 /// </summary>
 internal static class SpanDictLookup
 {
-    /// <summary>
-    /// Look up a span in a dictionary (case-insensitive).
-    /// Returns the canonical value or null if not found.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static string? Lookup(ReadOnlySpan<char> token, Dictionary<string, string> map)
+    public static string? Lookup(ReadOnlySpan<char> token, FrozenDictionary<string, string> map)
     {
-        // ponytail: Allocates one string per lookup for the dictionary key.
-        // Upgrade path: custom hash map with span-native keys (FrozenDictionary in .NET 8+).
-        // For benchmarking, this is still much faster than the original due to tokenizer savings.
-        var key = new string(token);
-        return map.TryGetValue(key, out var value) ? value : null;
+        var alt = map.GetAlternateLookup<ReadOnlySpan<char>>();
+        return alt.TryGetValue(token, out var value) ? value : null;
     }
+
+    /// <summary>
+    /// Convert an IReadOnlyDictionary to a FrozenDictionary (case-insensitive).
+    /// </summary>
+    internal static FrozenDictionary<string, string> Freeze(IReadOnlyDictionary<string, string> source) =>
+        source.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 }
 
-/// <summary>
-/// Video codec pattern matching using span operations instead of regex.
-/// </summary>
 internal static class SpanVideoCodec
 {
-    private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["x264"] = "H.264", ["h264"] = "H.264", ["h.264"] = "H.264", ["avc"] = "H.264",
-        ["x265"] = "H.265", ["h265"] = "H.265", ["h.265"] = "H.265", ["hevc"] = "H.265",
-        ["xvid"] = "Xvid", ["divx"] = "DivX",
-        ["vp7"] = "VP7", ["vp8"] = "VP8", ["vp9"] = "VP9",
-        ["mpeg2"] = "MPEG-2", ["mpeg-2"] = "MPEG-2",
-        ["vc-1"] = "VC-1", ["vc1"] = "VC-1",
-        ["h263"] = "H.263", ["h.263"] = "H.263",
-    };
-
+    private static readonly FrozenDictionary<string, string> Map = SpanDictLookup.Freeze(Vocabulary.VideoCodecs);
     public static string? Match(ReadOnlySpan<char> token) => SpanDictLookup.Lookup(token, Map);
 }
 
 internal static class SpanAudioCodec
 {
-    private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["aac"] = "AAC", ["ac3"] = "Dolby Digital", ["dd"] = "Dolby Digital",
-        ["eac3"] = "Dolby Digital Plus", ["ddp"] = "Dolby Digital Plus",
-        ["truehd"] = "Dolby TrueHD", ["atmos"] = "Dolby Atmos",
-        ["dts"] = "DTS", ["dtshd"] = "DTS-HD", ["dts-hd"] = "DTS-HD", ["dts-hdma"] = "DTS-HD",
-        ["dtsx"] = "DTS:X", ["dts-x"] = "DTS:X",
-        ["flac"] = "FLAC", ["lpcm"] = "LPCM", ["pcm"] = "PCM",
-        ["mp2"] = "MP2", ["mp3"] = "MP3", ["opus"] = "Opus", ["vorbis"] = "Vorbis",
-    };
-
-    // Two-token patterns
+    private static readonly FrozenDictionary<string, string> Map = SpanDictLookup.Freeze(Vocabulary.AudioCodecs);
     public static string? Match(ReadOnlySpan<char> token) => SpanDictLookup.Lookup(token, Map);
 
     public static string? MatchTwo(ReadOnlySpan<char> first, ReadOnlySpan<char> second)
     {
+        // ponytail: Inline two-token matching instead of dictionary concat to avoid allocation.
         if (first.Equals("dts", StringComparison.OrdinalIgnoreCase))
         {
             if (second.Equals("hd", StringComparison.OrdinalIgnoreCase) ||
@@ -70,122 +50,162 @@ internal static class SpanAudioCodec
         }
         if (first.Equals("true", StringComparison.OrdinalIgnoreCase) &&
             second.Equals("hd", StringComparison.OrdinalIgnoreCase)) return "Dolby TrueHD";
+        if (first.Equals("dolby", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("atmos", StringComparison.OrdinalIgnoreCase)) return "Dolby Atmos";
         return null;
     }
 }
 
 internal static class SpanSource
 {
-    private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["bluray"] = "Blu-ray", ["blu-ray"] = "Blu-ray", ["bdrip"] = "Blu-ray", ["brrip"] = "Blu-ray", ["bdremux"] = "Blu-ray",
-        ["web"] = "Web", ["webrip"] = "Web", ["web-dl"] = "Web", ["webdl"] = "Web", ["web-rip"] = "Web",
-        ["hdtv"] = "HDTV", ["pdtv"] = "HDTV", ["dsr"] = "HDTV", ["dsrip"] = "HDTV",
-        ["dvd"] = "DVD", ["dvdrip"] = "DVD", ["dvdscr"] = "DVD", ["dvd-r"] = "DVD",
-        ["hd-dvd"] = "HD-DVD", ["hddvd"] = "HD-DVD",
-        ["sdtv"] = "TV", ["tv"] = "TV", ["tvrip"] = "TV",
-        ["satrip"] = "Satellite", ["satellite"] = "Satellite",
-        ["cam"] = "Camera", ["camrip"] = "Camera", ["hdcam"] = "HD Camera",
-        ["ts"] = "Telesync", ["telesync"] = "Telesync", ["hdts"] = "HD Telesync",
-        ["tc"] = "Telecine", ["telecine"] = "Telecine", ["hdtc"] = "HD Telecine",
-        ["vod"] = "Video on Demand", ["ppv"] = "Pay-per-view",
-        ["workprint"] = "Workprint", ["vhs"] = "VHS", ["laserdisc"] = "Laserdisc",
-    };
-
+    private static readonly FrozenDictionary<string, string> Map = SpanDictLookup.Freeze(Vocabulary.Sources);
     public static string? Match(ReadOnlySpan<char> token) => SpanDictLookup.Lookup(token, Map);
+
+    public static string? MatchTwo(ReadOnlySpan<char> first, ReadOnlySpan<char> second)
+    {
+        // Two-token source patterns that the tokenizer splits on separators
+        if (first.Equals("blu", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("ray", StringComparison.OrdinalIgnoreCase)) return "Blu-ray";
+        if (first.Equals("web", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("dl", StringComparison.OrdinalIgnoreCase)) return "Web";
+        if (first.Equals("web", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("rip", StringComparison.OrdinalIgnoreCase)) return "Web";
+        if (first.Equals("hd", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("dvd", StringComparison.OrdinalIgnoreCase)) return "HD-DVD";
+        if (first.Equals("uhd", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("bluray", StringComparison.OrdinalIgnoreCase)) return "Ultra HD Blu-ray";
+        return null;
+    }
 }
 
 internal static class SpanEdition
 {
-    private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["dc"] = "Director's Cut", ["extended"] = "Extended", ["unrated"] = "Unrated",
-        ["uncut"] = "Uncut", ["remastered"] = "Remastered", ["restored"] = "Restored",
-        ["theatrical"] = "Theatrical", ["imax"] = "IMAX", ["special"] = "Special",
-        ["limited"] = "Limited", ["collector"] = "Collector", ["criterion"] = "Criterion",
-        ["ultimate"] = "Ultimate", ["deluxe"] = "Deluxe", ["uncensored"] = "Uncensored",
-        ["fan"] = "Fan", ["festival"] = "Festival",
-    };
-
+    private static readonly FrozenDictionary<string, string> Map = SpanDictLookup.Freeze(Vocabulary.Editions);
     public static string? Match(ReadOnlySpan<char> token) => SpanDictLookup.Lookup(token, Map);
+
+    public static string? MatchTwo(ReadOnlySpan<char> first, ReadOnlySpan<char> second)
+    {
+        if (second.Equals("cut", StringComparison.OrdinalIgnoreCase))
+        {
+            if (first.Equals("directors", StringComparison.OrdinalIgnoreCase) ||
+                first.Equals("director's", StringComparison.OrdinalIgnoreCase)) return "Director's Cut";
+            if (first.Equals("extended", StringComparison.OrdinalIgnoreCase)) return "Extended";
+            if (first.Equals("theatrical", StringComparison.OrdinalIgnoreCase)) return "Theatrical";
+            if (first.Equals("alternative", StringComparison.OrdinalIgnoreCase)) return "Alternative Cut";
+            if (first.Equals("final", StringComparison.OrdinalIgnoreCase)) return "Final Cut";
+        }
+        if (first.Equals("special", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("edition", StringComparison.OrdinalIgnoreCase)) return "Special";
+        if (first.Equals("fan", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("edit", StringComparison.OrdinalIgnoreCase)) return "Fan";
+        return null;
+    }
 }
 
 internal static class SpanOther
 {
-    private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["proper"] = "Proper", ["repack"] = "Proper", ["rerip"] = "Proper",
-        ["remux"] = "Remux", ["3d"] = "3D",
-        ["hdr"] = "HDR10", ["hdr10"] = "HDR10",
-        ["dv"] = "Dolby Vision", ["dolbyvision"] = "Dolby Vision",
-        ["dual"] = "Dual Audio", ["multi"] = "Dual Audio",
-        ["complete"] = "Complete", ["internal"] = "Internal", ["sample"] = "Sample",
-        ["fix"] = "Fix", ["dubbed"] = "Line Dubbed", ["dub"] = "Line Dubbed",
-        ["screener"] = "Screener", ["trailer"] = "Trailer",
-        ["hybrid"] = "Hybrid", ["uhd"] = "Ultra HD", ["hd"] = "HD",
-    };
-
+    private static readonly FrozenDictionary<string, string> Map = SpanDictLookup.Freeze(Vocabulary.Others);
     public static string? Match(ReadOnlySpan<char> token) => SpanDictLookup.Lookup(token, Map);
+
+    public static string? MatchTwo(ReadOnlySpan<char> first, ReadOnlySpan<char> second)
+    {
+        if (first.Equals("dolby", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("vision", StringComparison.OrdinalIgnoreCase)) return "Dolby Vision";
+        if (first.Equals("dual", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("audio", StringComparison.OrdinalIgnoreCase)) return "Dual Audio";
+        if (first.Equals("open", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("matte", StringComparison.OrdinalIgnoreCase)) return "Open Matte";
+        if (first.Equals("hdr10", StringComparison.OrdinalIgnoreCase) &&
+            second.Equals("+", StringComparison.Ordinal)) return "HDR10";
+        return null;
+    }
 }
 
 internal static class SpanStreamingService
 {
-    private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["amzn"] = "Amazon Prime", ["amazon"] = "Amazon Prime",
-        ["nf"] = "Netflix", ["netflix"] = "Netflix",
-        ["dsnp"] = "Disney+", ["disneyplus"] = "Disney+",
-        ["hulu"] = "Hulu", ["hmax"] = "HBO Max", ["hbo"] = "HBO Max",
-        ["atvp"] = "AppleTV", ["aptv"] = "AppleTV",
-        ["pcok"] = "Peacock", ["peacock"] = "Peacock",
-        ["pmtp"] = "Paramount+",
-        ["cr"] = "Crunchy Roll", ["crunchyroll"] = "Crunchy Roll",
-        ["stan"] = "Stan", ["crav"] = "Crave", ["crave"] = "Crave",
-        ["sho"] = "Showtime", ["showtime"] = "Showtime",
-        ["starz"] = "Starz", ["max"] = "Max", ["binge"] = "Binge",
-    };
-
+    private static readonly FrozenDictionary<string, string> Map = SpanDictLookup.Freeze(Vocabulary.StreamingServices);
     public static string? Match(ReadOnlySpan<char> token) => SpanDictLookup.Lookup(token, Map);
 }
 
 internal static class SpanColorDepth
 {
-    private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["8bit"] = "8-bit", ["8-bit"] = "8-bit",
-        ["10bit"] = "10-bit", ["10-bit"] = "10-bit",
-        ["12bit"] = "12-bit", ["12-bit"] = "12-bit",
-    };
-
+    private static readonly FrozenDictionary<string, string> Map = SpanDictLookup.Freeze(Vocabulary.ColorDepths);
     public static string? Match(ReadOnlySpan<char> token) => SpanDictLookup.Lookup(token, Map);
 }
 
 internal static class SpanContainer
 {
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["mkv"] = "video/x-matroska", ["avi"] = "video/x-msvideo", ["mp4"] = "video/mp4",
-        ["m4v"] = "video/mp4", ["mov"] = "video/quicktime", ["wmv"] = "video/x-ms-wmv",
-        ["flv"] = "video/x-flv", ["webm"] = "video/webm", ["ogv"] = "video/ogg",
-        ["mpg"] = "video/mpeg", ["mpeg"] = "video/mpeg", ["vob"] = "video/dvd",
-        ["m2ts"] = "video/mp2t", ["ts"] = "video/mp2t", ["3gp"] = "video/3gpp",
-    };
+    private static readonly FrozenDictionary<string, string> MimeTypes = SpanDictLookup.Freeze(Vocabulary.Containers);
 
-    private static readonly HashSet<string> Known = new(StringComparer.OrdinalIgnoreCase)
+    // ponytail: Maps ext → canonical lowercase ext for zero-alloc container name return.
+    // Built from KnownExtensions collection.
+    private static readonly FrozenDictionary<string, string> Known =
+        ((HashSet<string>)Vocabulary.KnownExtensions)
+            .ToFrozenDictionary(e => e, e => e.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase);
+
+    public static string? TryGetCanonical(ReadOnlySpan<char> ext)
     {
-        "3g2","3gp","avi","asf","divx","flv","m2ts","m4v","mk3d","mka","mkv","mov",
-        "mp4","mpeg","mpg","ogg","ogm","ogv","rm","srt","ssa","ts","vob","wav","webm","wmv",
-    };
+        var alt = Known.GetAlternateLookup<ReadOnlySpan<char>>();
+        return alt.TryGetValue(ext, out var canonical) ? canonical : null;
+    }
 
     public static bool IsKnown(ReadOnlySpan<char> ext)
     {
-        var s = new string(ext);
-        return Known.Contains(s);
+        var alt = Known.GetAlternateLookup<ReadOnlySpan<char>>();
+        return alt.ContainsKey(ext);
     }
 
     public static string? GetMime(ReadOnlySpan<char> ext)
     {
-        var s = new string(ext);
-        return MimeTypes.TryGetValue(s, out var m) ? m : null;
+        var alt = MimeTypes.GetAlternateLookup<ReadOnlySpan<char>>();
+        return alt.TryGetValue(ext, out var m) ? m : null;
+    }
+}
+
+internal static class SpanScreenSize
+{
+    private static readonly FrozenDictionary<string, string> Canonical = SpanDictLookup.Freeze(Vocabulary.ScreenSizes);
+
+    /// <summary>
+    /// Returns the canonical lowercase screen-size string, or null if not a screen size.
+    /// </summary>
+    public static string? Match(ReadOnlySpan<char> slice)
+    {
+        if (slice.Length is < 4 or > 9) return null;
+
+        var last = slice[^1];
+        if (last is 'p' or 'i' or 'P' or 'I')
+        {
+            for (var i = 0; i < slice.Length - 1; i++)
+                if (!char.IsDigit(slice[i])) return null;
+
+            // Try canonical lookup first (zero alloc for common sizes)
+            var alt = Canonical.GetAlternateLookup<ReadOnlySpan<char>>();
+            if (alt.TryGetValue(slice, out var canonical)) return canonical;
+
+            // ponytail: Fallback for exotic resolutions like "1920p". One alloc, rare path.
+            Span<char> buf = stackalloc char[slice.Length];
+            for (var i = 0; i < slice.Length; i++)
+                buf[i] = char.ToLowerInvariant(slice[i]);
+            return new string(buf);
+        }
+
+        // NxN format (e.g. 1920x1080)
+        var x = slice.IndexOf('x');
+        if (x < 0) x = slice.IndexOf('X');
+        if (x <= 0 || x >= slice.Length - 1) return null;
+        
+        {
+            for (var i = 0; i < x; i++)
+                if (!char.IsDigit(slice[i])) return null;
+            for (var i = x + 1; i < slice.Length; i++)
+                if (!char.IsDigit(slice[i])) return null;
+
+            Span<char> buf = stackalloc char[slice.Length];
+            for (var i = 0; i < slice.Length; i++)
+                buf[i] = (slice[i] == 'X') ? 'x' : slice[i];
+            return new string(buf);
+        }
+
     }
 }

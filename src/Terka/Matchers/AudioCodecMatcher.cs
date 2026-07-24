@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Terka.Shared;
 
 namespace Terka.Matchers
 {
@@ -8,41 +9,33 @@ namespace Terka.Matchers
     /// </summary>
     internal class AudioCodecMatcher : IMatcher
     {
-        private static readonly Dictionary<string, string> SingleTokenMap =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["aac"] = "AAC",
-            ["ac3"] = "Dolby Digital",
-            ["dd"] = "Dolby Digital",
-            ["dd5.1"] = "Dolby Digital",
-            ["eac3"] = "Dolby Digital Plus",
-            ["ddp"] = "Dolby Digital Plus",
-            ["ddp5.1"] = "Dolby Digital Plus",
-            ["truehd"] = "Dolby TrueHD",
-            ["atmos"] = "Dolby Atmos",
-            ["dts"] = "DTS",
-            ["dtshd"] = "DTS-HD",
-            ["dts-hd"] = "DTS-HD",
-            ["dts-hdma"] = "DTS-HD",
-            ["dtsx"] = "DTS:X",
-            ["dts-x"] = "DTS:X",
-            ["flac"] = "FLAC",
-            ["lpcm"] = "LPCM",
-            ["pcm"] = "PCM",
-            ["mp2"] = "MP2",
-            ["mp3"] = "MP3",
-            ["opus"] = "Opus",
-            ["vorbis"] = "Vorbis",
-        };
+        private static readonly Dictionary<string, string> SingleTokenMap = BuildSingleMap();
 
-        // Two-token combinations: (first, second) → canonical
-        private static readonly (string First, string Second, string Canonical)[] TwoTokenCombos =
+        private static Dictionary<string, string> BuildSingleMap()
         {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in Vocabulary.AudioCodecs)
+                map[entry.Key] = entry.Value;
+
+            // Separator variants only base tokenizer handles
+            map["dts-hd"] = "DTS-HD";
+            map["dts-hdma"] = "DTS-HD";
+            map["dts-x"] = "DTS:X";
+            // Channel-suffixed variants
+            map["dd5.1"] = "Dolby Digital";
+            map["ddp5.1"] = "Dolby Digital Plus";
+            return map;
+        }
+
+        // Two-token combinations from shared vocabulary
+        private static readonly (string First, string Second, string Canonical)[] TwoTokenCombos =
+        [
             ("dts", "hd", "DTS-HD"),
             ("dts", "hdma", "DTS-HD"),
             ("dts", "x", "DTS:X"),
             ("true", "hd", "Dolby TrueHD"),
-        };
+            ("dolby", "atmos", "Dolby Atmos")
+        ];
 
         public void Match(Token[] tokens, GuessResult result)
         {

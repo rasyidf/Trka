@@ -141,7 +141,7 @@ namespace Terka.Matchers
 
         private static void MarkOverlapping(Token[] tokens, string matchedText)
         {
-            var parts = matchedText.Split(new[] { ' ', '.', '_', '-' },
+            var parts = matchedText.Split([' ', '.', '_', '-'],
                 System.StringSplitOptions.RemoveEmptyEntries);
             foreach (var token in tokens)
             {

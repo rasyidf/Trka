@@ -10,4 +10,8 @@
     <Description>High-performance Span-based variant of Terka (GuessIt.NET). Zero-allocation tokenizer and matchers using ReadOnlySpan&lt;char&gt;.</Description>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Shared\Vocabulary.cs" Link="Shared\Vocabulary.cs" />
+  </ItemGroup>
+
 </Project>

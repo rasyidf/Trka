@@ -1,9 +1,11 @@
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Columns;
 
 namespace Terka.Benchmarks;
 
 [MemoryDiagnoser]
 [RankColumn]
+[HideColumns(Column.Error)]
 public class GuessItBenchmarks
 {
     private string[] _filenames = null!;
@@ -30,7 +32,7 @@ public class GuessItBenchmarks
         return count;
     }
 
-    [Benchmark(Description = "Terka.Span (net8.0, Span<T>)")]
+    [Benchmark(Description = "Terka.Span (net10.0, Span<T>)")]
     public int Terka_Span()
     {
         int count = 0;
@@ -41,9 +43,22 @@ public class GuessItBenchmarks
         }
         return count;
     }
+
+    [Benchmark(Description = "Terka.Span ZeroAlloc (ref struct)")]
+    public int Terka_ZeroAlloc()
+    {
+        int count = 0;
+        foreach (var f in _filenames)
+        {
+            var result = Span.SpanGuessIt.GuessZeroAlloc(f);
+            if (!result.Title.IsEmpty) count++;
+        }
+        return count;
+    }
 }
 
 [MemoryDiagnoser]
+[HideColumns(Column.Error)]
 public class SingleFileBenchmarks
 {
     private const string MovieFile = "The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv";

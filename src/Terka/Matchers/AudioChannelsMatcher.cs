@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using Terka.Shared;
 
 namespace Terka.Matchers
 {
@@ -10,25 +10,15 @@ namespace Terka.Matchers
     /// </summary>
     internal class AudioChannelsMatcher : IMatcher
     {
-        private static readonly Dictionary<string, string> SingleTokenMap =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["7.1"] = "7.1",
-            ["5.1"] = "5.1",
-            ["2.0"] = "2.0",
-            ["1.0"] = "1.0",
-            ["stereo"] = "2.0",
-            ["mono"] = "1.0",
-        };
+        private static readonly Dictionary<string, string> SingleTokenMap = BuildMap();
 
-        // Two-token combos: first + second → channels
-        private static readonly (string First, string Second, string Channels)[] TwoTokenCombos =
+        private static Dictionary<string, string> BuildMap()
         {
-            ("7", "1", "7.1"),
-            ("5", "1", "5.1"),
-            ("2", "0", "2.0"),
-            ("1", "0", "1.0"),
-        };
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in Vocabulary.AudioChannels)
+                map[entry.Key] = entry.Value;
+            return map;
+        }
 
         public void Match(Token[] tokens, GuessResult result)
         {
@@ -44,7 +34,7 @@ namespace Terka.Matchers
                 }
             }
 
-            // Two-token: "5" followed by "1"
+            // Two-token: "5" followed by "1" (from shared vocabulary)
             for (int i = 0; i < tokens.Length - 1; i++)
             {
                 if (tokens[i].Matched) continue;
@@ -52,7 +42,7 @@ namespace Terka.Matchers
                 while (next < tokens.Length && tokens[next].Matched) next++;
                 if (next >= tokens.Length) break;
 
-                foreach (var combo in TwoTokenCombos)
+                foreach (var combo in Vocabulary.AudioChannelsTwoToken)
                 {
                     if (tokens[i].Value == combo.First && tokens[next].Value == combo.Second)
                     {

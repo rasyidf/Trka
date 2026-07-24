@@ -23,6 +23,7 @@ namespace Terka
         private static readonly ReleaseGroupMatcher _releaseGroupMatcher = new ReleaseGroupMatcher();
         private static readonly StreamingServiceMatcher _streamingServiceMatcher = new StreamingServiceMatcher();
         private static readonly ColorDepthMatcher _colorDepthMatcher = new ColorDepthMatcher();
+        private static readonly LanguageMatcher _languageMatcher = new LanguageMatcher();
         private static readonly ContainerMatcher _containerMatcher = new ContainerMatcher();
         private static readonly TitleExtractor _titleExtractor = new TitleExtractor();
 
@@ -55,6 +56,7 @@ namespace Terka
             _editionMatcher.Match(tokens, result);
             _otherMatcher.Match(tokens, result);
             _colorDepthMatcher.Match(tokens, result);
+            _languageMatcher.Match(tokens, result);
             _yearMatcher.Match(tokens, result);
 
             // Absolute episode (anime) - only if no S##E## found
@@ -78,6 +80,54 @@ namespace Terka
         public static Dictionary<string, object> GuessDict(string filename, GuessOptions options = null)
         {
             return Guess(filename, options).ToDictionary();
+        }
+
+        /// <summary>
+        /// Attempts to guess media properties. Returns false if the input doesn't appear to be a media filename.
+        /// </summary>
+        public static bool TryGuess(string filename, out GuessResult result)
+        {
+            result = null;
+            if (string.IsNullOrWhiteSpace(filename) || filename.Length < 3) return false;
+
+            bool hasStructure = false;
+            foreach (var c in filename)
+            {
+                if (c == '.' || c == ' ' || c == '_' || c == '-' || c == '[' || c == '(')
+                { hasStructure = true; break; }
+            }
+            if (!hasStructure) return false;
+
+            var r = Guess(filename);
+            if (r.Title == null || (r.VideoCodec == null && r.Source == null && r.ScreenSize == null && r.Season.Count == 0 && r.Episode.Count == 0 && r.Year == null))
+                return false;
+
+            result = r;
+            return true;
+        }
+
+        /// <summary>
+        /// Attempts to guess media properties with options. Returns false if the input doesn't appear to be a media filename.
+        /// </summary>
+        public static bool TryGuess(string filename, GuessOptions options, out GuessResult result)
+        {
+            result = null;
+            if (string.IsNullOrWhiteSpace(filename) || filename.Length < 3) return false;
+
+            bool hasStructure = false;
+            foreach (var c in filename)
+            {
+                if (c == '.' || c == ' ' || c == '_' || c == '-' || c == '[' || c == '(')
+                { hasStructure = true; break; }
+            }
+            if (!hasStructure) return false;
+
+            var r = Guess(filename, options);
+            if (r.Title == null || (r.VideoCodec == null && r.Source == null && r.ScreenSize == null && r.Season.Count == 0 && r.Episode.Count == 0 && r.Year == null))
+                return false;
+
+            result = r;
+            return true;
         }
 
         private static MediaType DetermineType(GuessResult result, GuessOptions options)

@@ -47,11 +47,11 @@ namespace Terka
 
         public GuessResult()
         {
-            Season = new List<int>();
-            Episode = new List<int>();
-            AbsoluteEpisode = new List<int>();
-            Edition = new List<string>();
-            Other = new List<string>();
+            Season = [];
+            Episode = [];
+            AbsoluteEpisode = [];
+            Edition = [];
+            Other = [];
         }
 
         /// <summary>

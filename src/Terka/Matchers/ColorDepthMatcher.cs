@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Terka.Shared;
 
 namespace Terka.Matchers
 {
@@ -6,11 +7,13 @@ namespace Terka.Matchers
     {
         protected override IEnumerable<KeyValuePair<string, string>> BuildMap()
         {
-            yield return new KeyValuePair<string, string>("8bit", "8-bit");
+            // Primary data from shared vocabulary
+            foreach (var entry in Vocabulary.ColorDepths)
+                yield return entry;
+
+            // Additional separator variants (base tokenizer can handle these)
             yield return new KeyValuePair<string, string>("8-bit", "8-bit");
-            yield return new KeyValuePair<string, string>("10bit", "10-bit");
             yield return new KeyValuePair<string, string>("10-bit", "10-bit");
-            yield return new KeyValuePair<string, string>("12bit", "12-bit");
             yield return new KeyValuePair<string, string>("12-bit", "12-bit");
         }
 

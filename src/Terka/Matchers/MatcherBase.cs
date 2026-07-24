@@ -53,7 +53,7 @@ namespace Terka.Matchers
 
         protected RegexMatcher()
         {
-            _patterns = new List<(Regex, string)>();
+            _patterns = [];
             foreach (var entry in BuildPatterns())
                 _patterns.Add((new Regex(entry.Pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled), entry.Value));
         }

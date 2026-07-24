@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Terka\Terka.csproj" />
+    <ProjectReference Include="..\..\src\Terka.Span\Terka.Span.csproj" />
   </ItemGroup>
 
 </Project>

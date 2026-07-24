@@ -1,9 +1,10 @@
 using System.Text.RegularExpressions;
+using Terka.Shared;
 
 namespace Terka.Matchers
 {
     /// <summary>
-    /// Detects a 4-digit year (1920–2030) in tokens.
+    /// Detects a 4-digit year in tokens using shared year bounds.
     /// </summary>
     internal class YearMatcher : IMatcher
     {
@@ -12,7 +13,6 @@ namespace Terka.Matchers
 
         public void Match(Token[] tokens, GuessResult result)
         {
-            // Take the first plausible year token
             foreach (var token in tokens)
             {
                 if (token.Matched) continue;
@@ -20,11 +20,11 @@ namespace Terka.Matchers
                 if (m.Success)
                 {
                     int year = int.Parse(m.Groups[1].Value);
-                    if (year >= 1920 && year <= 2030)
+                    if (year >= Vocabulary.YearMin && year <= Vocabulary.YearMax)
                     {
                         result.Year = year;
                         token.Matched = true;
-                        return; // only one year
+                        return;
                     }
                 }
             }

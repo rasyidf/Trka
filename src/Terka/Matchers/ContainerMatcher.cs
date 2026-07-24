@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Terka.Shared;
 
 namespace Terka.Matchers
 {
@@ -9,49 +11,59 @@ namespace Terka.Matchers
     /// </summary>
     internal class ContainerMatcher
     {
-        private static readonly Dictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["mkv"] = "video/x-matroska",
-            ["mk3d"] = "video/x-matroska-3d",
-            ["mka"] = "audio/x-matroska",
-            ["avi"] = "video/x-msvideo",
-            ["mp4"] = "video/mp4",
-            ["m4v"] = "video/mp4",
-            ["mov"] = "video/quicktime",
-            ["wmv"] = "video/x-ms-wmv",
-            ["flv"] = "video/x-flv",
-            ["webm"] = "video/webm",
-            ["ogv"] = "video/ogg",
-            ["ogg"] = "video/ogg",
-            ["ogm"] = "video/ogg",
-            ["mpg"] = "video/mpeg",
-            ["mpeg"] = "video/mpeg",
-            ["vob"] = "video/dvd",
-            ["m2ts"] = "video/mp2t",
-            ["ts"] = "video/mp2t",
-            ["3gp"] = "video/3gpp",
-            ["3g2"] = "video/3gpp2",
-            ["asf"] = "video/x-ms-asf",
-            ["rm"] = "application/vnd.rn-realmedia",
-            ["divx"] = "video/x-msvideo",
-            ["srt"] = "text/srt",
-            ["ssa"] = "text/x-ssa",
-            ["mp3"] = "audio/mpeg",
-            ["wav"] = "audio/x-wav",
-            ["wma"] = "audio/x-ms-wma",
-            ["ra"] = "audio/vnd.rn-realaudio",
-            ["ram"] = "audio/vnd.rn-realaudio",
-            ["flac"] = "audio/flac",
-        };
+        // Start from shared vocabulary, add extras specific to base Terka
+        private static readonly Dictionary<string, string> MimeTypes = BuildMimeTypes();
 
-        private static readonly HashSet<string> KnownContainers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        private static Dictionary<string, string> BuildMimeTypes()
         {
-            "3g2","3gp","3gp2","7z","avi","asf","bmp","bz2","cb7","cbr","cbz","divx","flv",
-            "gif","gz","idx","iso","jpeg","jpg","m2ts","m4v","mk2","mk3d","mka","mkv","mov",
-            "mp4","mp4a","mpeg","mpg","nfo","nzb","ogg","ogm","ogv","png","qt","r00","ra",
-            "ram","rar","rm","srt","ssa","tar","tbn","tgz","torrent","ts","vob","wav","webm",
-            "webp","wma","wmv","zip"
-        };
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in Vocabulary.Containers)
+                map[entry.Key] = entry.Value;
+
+            // Additional entries not in shared vocabulary
+            map["mk3d"] = "video/x-matroska-3d";
+            map["mka"] = "audio/x-matroska";
+            map["ogg"] = "video/ogg";
+            map["ogm"] = "video/ogg";
+            map["3g2"] = "video/3gpp2";
+            map["asf"] = "video/x-ms-asf";
+            map["rm"] = "application/vnd.rn-realmedia";
+            map["divx"] = "video/x-msvideo";
+            map["srt"] = "text/srt";
+            map["ssa"] = "text/x-ssa";
+            map["mp3"] = "audio/mpeg";
+            map["wav"] = "audio/x-wav";
+            map["wma"] = "audio/x-ms-wma";
+            map["ra"] = "audio/vnd.rn-realaudio";
+            map["ram"] = "audio/vnd.rn-realaudio";
+            map["flac"] = "audio/flac";
+            return map;
+        }
+
+        // Shared known extensions + extras (archives, images, etc.)
+        private static readonly HashSet<string> KnownContainers = BuildKnownSet();
+
+        private static HashSet<string> BuildKnownSet()
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var ext in Vocabulary.KnownExtensions)
+                set.Add(ext);
+
+            // Additional non-video containers the base library recognizes
+            foreach (var ext in new[]
+            {
+                "3gp2", "7z", "bmp", "bz2", "cb7", "cbr", "cbz",
+                "gif", "gz", "idx", "iso", "jpeg", "jpg", "mk2",
+                "mp4a", "nfo", "nzb", "png", "qt", "r00", "ra",
+                "ram", "rar", "tar", "tbn", "tgz", "torrent",
+                "webp", "wma", "zip"
+            })
+            {
+                set.Add(ext);
+            }
+
+            return set;
+        }
 
         public void Match(string extension, GuessResult result)
         {

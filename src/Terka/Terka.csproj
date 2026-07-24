@@ -12,4 +12,8 @@
     <RepositoryUrl>https://github.com/rasyidf/Terka</RepositoryUrl>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Shared\Vocabulary.cs" Link="Shared\Vocabulary.cs" />
+  </ItemGroup>
+
 </Project>

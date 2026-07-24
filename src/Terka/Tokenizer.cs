@@ -27,7 +27,7 @@ namespace Terka
         public static TokenResult Tokenize(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
-                return new TokenResult(input, Array.Empty<Token>());
+                return new TokenResult(input, []);
 
             // Strip path, keep filename only
             var name = Path.GetFileNameWithoutExtension(input);
