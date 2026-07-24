@@ -281,6 +281,9 @@ public static class SpanGuessIt
             }
         }
 
+        // CRC32: 8-char hex bracket group (e.g. [A1B2C3D4])
+        ExtractCrc32(name, tokens, tokenCount, result);
+
         // Release group: first unmatched bracket group, or last token after last matched
         ExtractReleaseGroup(name, tokens, tokenCount, result);
 
@@ -471,6 +474,39 @@ public static class SpanGuessIt
                 if (TryParseSxE(slice, result))
                 {
                     tokens[i].Matched = true;
+
+                    // Peek at next token: if it's a bare number, check if it's a range end
+                    // (handles S01E01-03 where "-03" becomes token "03")
+                    // Only if number > last episode and < 100 (avoid eating screen sizes like 720)
+                    if (i + 1 < count && !tokens[i + 1].Matched && !tokens[i + 1].IsBracket)
+                    {
+                        var next = tokens[i + 1].Slice(name);
+                        if (next.Length >= 1 && next.Length <= 3 && IsAllDigits(next))
+                        {
+                            int rangeEnd = ParseInt(next);
+                            if (result.HasEpisode && rangeEnd > result.Episode[result.Episode.Count - 1]
+                                && rangeEnd < 100 && rangeEnd - result.Episode[result.Episode.Count - 1] <= 50)
+                            {
+                                int lastEp = result.Episode[result.Episode.Count - 1];
+                                for (int ep = lastEp + 1; ep <= rangeEnd; ep++)
+                                    result.Episode.Add(ep);
+                                tokens[i + 1].Matched = true;
+                            }
+                        }
+                        // Also handle "E03" as next token (S01E01-E03 split)
+                        else if (next.Length >= 2 && (next[0] == 'E' || next[0] == 'e') && IsAllDigits(next.Slice(1)))
+                        {
+                            int rangeEnd = ParseInt(next.Slice(1));
+                            if (result.HasEpisode && rangeEnd > result.Episode[result.Episode.Count - 1]
+                                && rangeEnd - result.Episode[result.Episode.Count - 1] <= 50)
+                            {
+                                int lastEp = result.Episode[result.Episode.Count - 1];
+                                for (int ep = lastEp + 1; ep <= rangeEnd; ep++)
+                                    result.Episode.Add(ep);
+                                tokens[i + 1].Matched = true;
+                            }
+                        }
+                    }
                     continue;
                 }
             }
@@ -484,6 +520,23 @@ public static class SpanGuessIt
                 tokens[i].Matched = true;
             }
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsAllDigits(ReadOnlySpan<char> s)
+    {
+        foreach (var c in s)
+            if (!char.IsDigit(c)) return false;
+        return s.Length > 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int ParseInt(ReadOnlySpan<char> s)
+    {
+        int val = 0;
+        foreach (var c in s)
+            val = val * 10 + (c - '0');
+        return val;
     }
 
     private static bool TryParseSxE(ReadOnlySpan<char> slice, SpanGuessResult result)
@@ -500,17 +553,53 @@ public static class SpanGuessIt
 
         result.Season.Add(season);
 
-        while (i < slice.Length && (slice[i] == 'E' || slice[i] == 'e'))
+        int firstEp = 0;
+        while (i < slice.Length)
         {
-            i++; // skip 'E'
-            var ep = 0;
-            while (i < slice.Length && char.IsDigit(slice[i]))
+            if (slice[i] == 'E' || slice[i] == 'e')
             {
-                ep = ep * 10 + (slice[i] - '0');
-                i++;
+                i++; // skip 'E'
+                var ep = 0;
+                while (i < slice.Length && char.IsDigit(slice[i]))
+                {
+                    ep = ep * 10 + (slice[i] - '0');
+                    i++;
+                }
+                if (ep > 0)
+                {
+                    if (firstEp == 0) firstEp = ep;
+                    result.Episode.Add(ep);
+                }
             }
-            if (ep > 0) result.Episode.Add(ep);
-            while (i < slice.Length && (slice[i] == '-' || slice[i] == ' ')) i++;
+            else if (slice[i] == '-')
+            {
+                i++; // skip '-'
+                // Check if next is 'E' (S01E01-E03) or digit (S01E01-03)
+                if (i < slice.Length && (slice[i] == 'E' || slice[i] == 'e'))
+                {
+                    continue; // let the E branch handle it
+                }
+                // Numeric range: S01E01-03
+                var rangeEnd = 0;
+                while (i < slice.Length && char.IsDigit(slice[i]))
+                {
+                    rangeEnd = rangeEnd * 10 + (slice[i] - '0');
+                    i++;
+                }
+                if (rangeEnd > firstEp && firstEp > 0)
+                {
+                    for (int ep = firstEp + 1; ep <= rangeEnd; ep++)
+                        result.Episode.Add(ep);
+                }
+                else if (rangeEnd > 0)
+                {
+                    result.Episode.Add(rangeEnd);
+                }
+            }
+            else
+            {
+                break;
+            }
         }
 
         return result.HasEpisode;
@@ -583,6 +672,37 @@ public static class SpanGuessIt
         if (first[0] == '2' && second[0] == '0') return "2.0";
         if (first[0] == '1' && second[0] == '0') return "1.0";
         return null;
+    }
+
+    private static void ExtractCrc32(ReadOnlySpan<char> name, Span<SpanToken> tokens, int count, SpanGuessResult result)
+    {
+        // CRC32 is an 8-character hex string inside brackets, e.g. [A1B2C3D4]
+        for (int i = 0; i < count; i++)
+        {
+            if (!tokens[i].IsBracket || tokens[i].Matched) continue;
+            var slice = tokens[i].Slice(name);
+            if (slice.Length == 8 && IsHex(slice))
+            {
+                result.Crc32 = new string(slice);
+                tokens[i].Matched = true;
+                return;
+            }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsHex(ReadOnlySpan<char> s)
+    {
+        foreach (var c in s)
+        {
+            if (!char.IsAsciiHexDigit(c)) return false;
+        }
+        // Must contain at least one letter (to distinguish from pure-number tokens)
+        foreach (var c in s)
+        {
+            if (char.IsLetter(c)) return true;
+        }
+        return false;
     }
 
     private static void ExtractReleaseGroup(ReadOnlySpan<char> name, Span<SpanToken> tokens, int count, SpanGuessResult result)

@@ -62,6 +62,18 @@ namespace Terka
             // Absolute episode (anime) - only if no S##E## found
             _episodeMatcher.MatchAbsolute(tokens, result);
 
+            // CRC32: 8-char hex bracket group (e.g. [A1B2C3D4])
+            foreach (var token in tokens)
+            {
+                if (!token.IsBracketGroup || token.Matched) continue;
+                if (token.Value.Length == 8 && IsHexWithLetter(token.Value))
+                {
+                    result.Crc32 = token.Value;
+                    token.Matched = true;
+                    break;
+                }
+            }
+
             // Release group (last, since it uses remaining unmatched tokens)
             _releaseGroupMatcher.Match(tokens, result);
 
@@ -139,6 +151,18 @@ namespace Terka
                 return MediaType.Episode;
 
             return MediaType.Movie;
+        }
+
+        private static bool IsHexWithLetter(string s)
+        {
+            bool hasLetter = false;
+            foreach (var c in s)
+            {
+                if ((c >= '0' && c <= '9')) continue;
+                if ((c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) { hasLetter = true; continue; }
+                return false;
+            }
+            return hasLetter;
         }
     }
 

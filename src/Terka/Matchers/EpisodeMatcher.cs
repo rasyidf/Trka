@@ -8,9 +8,15 @@ namespace Terka.Matchers
     /// </summary>
     internal class EpisodeMatcher : IMatcher
     {
-        // S01E02, S01E02E03, S01E02-E03
+        // S01E02, S01E02E03, S01E02-E03, S01E01-03
+        // Note: range numbers are validated in MatchSxE to avoid matching screen sizes
         private static readonly Regex SeasonEpisode = new Regex(
             @"S(\d{1,3})E(\d{1,4})(?:[-\s]*E(\d{1,4}))*",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // Separate pattern for S01E01-03 numeric range (only matches when isolated by non-digit)
+        private static readonly Regex EpisodeRange = new Regex(
+            @"S\d{1,3}E(\d{1,4})\s+(\d{1,3})(?:\s|$)",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         // 1x03, 01x05
@@ -77,13 +83,50 @@ namespace Terka.Matchers
             var matches = SeasonEpisode.Matches(joined);
             foreach (Match m in matches)
             {
-                AddSeason(result, int.Parse(m.Groups[1].Value));
-                AddEpisode(result, int.Parse(m.Groups[2].Value));
-                if (m.Groups[3].Success)
-                    AddEpisode(result, int.Parse(m.Groups[3].Value));
+                int season = int.Parse(m.Groups[1].Value);
+                int firstEp = int.Parse(m.Groups[2].Value);
+                AddSeason(result, season);
+                AddEpisode(result, firstEp);
 
-                // Mark tokens that overlap with this match
+                // Group 3: explicit E## (e.g., S01E01E02 or S01E01-E03)
+                if (m.Groups[3].Success)
+                {
+                    int lastEp = int.Parse(m.Groups[3].Value);
+                    if (lastEp > firstEp && lastEp - firstEp <= 50)
+                    {
+                        for (int ep = firstEp + 1; ep <= lastEp; ep++)
+                            AddEpisode(result, ep);
+                    }
+                    else
+                    {
+                        AddEpisode(result, lastEp);
+                    }
+                }
+
                 MarkOverlapping(tokens, m.Value);
+            }
+
+            // Check for numeric range: S01E01 03 (tokenizer split on dash)
+            var rangeMatch = EpisodeRange.Match(joined);
+            if (rangeMatch.Success && result.Episode.Count > 0)
+            {
+                int firstEp = int.Parse(rangeMatch.Groups[1].Value);
+                int rangeEnd = int.Parse(rangeMatch.Groups[2].Value);
+                // Only expand if range end > first ep and looks reasonable (not a resolution)
+                if (rangeEnd > firstEp && rangeEnd - firstEp <= 50 && rangeEnd < 100)
+                {
+                    for (int ep = firstEp + 1; ep <= rangeEnd; ep++)
+                        AddEpisode(result, ep);
+                    // Mark the range token
+                    foreach (var token in tokens)
+                    {
+                        if (!token.Matched && token.Value == rangeMatch.Groups[2].Value)
+                        {
+                            token.Matched = true;
+                            break;
+                        }
+                    }
+                }
             }
         }
 

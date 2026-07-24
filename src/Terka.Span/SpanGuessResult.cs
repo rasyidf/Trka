@@ -46,6 +46,7 @@ public sealed class SpanGuessResult
     public string? StreamingService { get; set; }
     public string? ColorDepth { get; set; }
     public string? Language { get; set; }
+    public string? Crc32 { get; set; }
 
     /// <summary>
     /// Returns a dictionary representation, omitting null/empty values.

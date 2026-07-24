@@ -383,3 +383,137 @@ public class FeatureParityTests
         Assert.Equal(heap.ReleaseGroup, new string(zero.ReleaseGroup));
     }
 }
+
+
+/// <summary>
+/// Tests for correctness improvements: episode ranges, CRC32, episode title, two-token matching.
+/// </summary>
+public class CorrectnessTests
+{
+    // === EPISODE RANGES ===
+
+    [Fact]
+    public void EpisodeRange_S01E01E02E03()
+    {
+        var s = Terka.Span.SpanGuessIt.Guess("Show.S01E01E02E03.720p.HDTV.mkv");
+
+        Assert.Contains(1, s.Season);
+        Assert.Contains(1, s.Episode);
+        Assert.Contains(2, s.Episode);
+        Assert.Contains(3, s.Episode);
+    }
+
+    [Fact]
+    public void EpisodeRange_S01E01_03()
+    {
+        // S01E01-03 should expand to episodes 1, 2, 3
+        var s = Terka.Span.SpanGuessIt.Guess("Show.S01E01-03.720p.HDTV.mkv");
+
+        Assert.Contains(1, s.Season);
+        Assert.Contains(1, s.Episode);
+        Assert.Contains(2, s.Episode);
+        Assert.Contains(3, s.Episode);
+    }
+
+    [Fact]
+    public void EpisodeRange_S01E01_E03()
+    {
+        // S01E01-E03 should expand to episodes 1, 2, 3
+        var s = Terka.Span.SpanGuessIt.Guess("Show.S01E01-E03.720p.HDTV.mkv");
+
+        Assert.Contains(1, s.Season);
+        Assert.Contains(1, s.Episode);
+        Assert.Contains(2, s.Episode);
+        Assert.Contains(3, s.Episode);
+    }
+
+    [Fact]
+    public void EpisodeRange_Base_S01E01_03()
+    {
+        var b = Terka.GuessIt.Guess("Show.S01E01-03.720p.HDTV.mkv");
+
+        Assert.Contains(1, b.Season);
+        Assert.Contains(1, b.Episode);
+        Assert.Contains(2, b.Episode);
+        Assert.Contains(3, b.Episode);
+    }
+
+    // === CRC32 DETECTION ===
+
+    [Fact]
+    public void Crc32_SpanDetection()
+    {
+        var s = Terka.Span.SpanGuessIt.Guess("[SubGroup] Anime Title - 01 [1080p][HEVC][A1B2C3D4].mkv");
+
+        Assert.Equal("A1B2C3D4", s.Crc32);
+        Assert.Equal("SubGroup", s.ReleaseGroup);
+    }
+
+    [Fact]
+    public void Crc32_BaseDetection()
+    {
+        var b = Terka.GuessIt.Guess("[SubGroup] Anime Title - 01 [1080p][HEVC][A1B2C3D4].mkv");
+
+        Assert.Equal("A1B2C3D4", b.Crc32);
+    }
+
+    [Fact]
+    public void Crc32_NotConfusedWithGroup()
+    {
+        // "SubGroup" has letters but isn't 8-char hex — should be release group, not CRC32
+        var s = Terka.Span.SpanGuessIt.Guess("[SubGroup] Title - 01 [720p][DEADBEEF].mkv");
+
+        Assert.Equal("DEADBEEF", s.Crc32);
+        Assert.Equal("SubGroup", s.ReleaseGroup);
+    }
+
+    // === EPISODE TITLE ===
+
+    [Fact]
+    public void EpisodeTitle_Span()
+    {
+        var s = Terka.Span.SpanGuessIt.Guess("Breaking.Bad.S01E01.Pilot.720p.BluRay.x264-DEMAND.mkv");
+
+        Assert.Equal("Breaking Bad", s.Title);
+        Assert.Equal("Pilot", s.EpisodeTitle);
+        Assert.Contains(1, s.Season);
+        Assert.Contains(1, s.Episode);
+    }
+
+    [Fact]
+    public void EpisodeTitle_Base()
+    {
+        var b = Terka.GuessIt.Guess("Breaking.Bad.S01E01.Pilot.720p.BluRay.x264-DEMAND.mkv");
+
+        Assert.Equal("Breaking Bad", b.Title);
+        Assert.Equal("Pilot", b.EpisodeTitle);
+        Assert.Contains(1, b.Season);
+        Assert.Contains(1, b.Episode);
+    }
+
+    // === TWO-TOKEN BASE TERKA MATCHING ===
+
+    [Fact]
+    public void TwoToken_DirectorsCut_Base()
+    {
+        var b = Terka.GuessIt.Guess("Movie.2020.Directors.Cut.1080p.BluRay.x264-GRP.mkv");
+
+        Assert.Contains("Director's Cut", b.Edition);
+    }
+
+    [Fact]
+    public void TwoToken_DolbyVision_Base()
+    {
+        var b = Terka.GuessIt.Guess("Movie.2020.1080p.Dolby.Vision.BluRay.x265-GRP.mkv");
+
+        Assert.Contains("Dolby Vision", b.Other);
+    }
+
+    [Fact]
+    public void TwoToken_DualAudio_Base()
+    {
+        var b = Terka.GuessIt.Guess("Movie.2020.1080p.Dual.Audio.BluRay.x264-GRP.mkv");
+
+        Assert.Contains("Dual Audio", b.Other);
+    }
+}
