@@ -44,6 +44,7 @@ namespace Terka
         public string Crc32 { get; set; }
         public string ColorDepth { get; set; }
         public string ScanType { get; set; }
+        public float Confidence { get; set; }
 
         public GuessResult()
         {
@@ -102,6 +103,7 @@ namespace Terka
             if (!string.IsNullOrEmpty(Crc32)) dict["crc32"] = Crc32;
             if (!string.IsNullOrEmpty(ColorDepth)) dict["color_depth"] = ColorDepth;
             if (!string.IsNullOrEmpty(ScanType)) dict["scan_type"] = ScanType;
+            if (Confidence > 0f) dict["confidence"] = Confidence;
 
             return dict;
         }

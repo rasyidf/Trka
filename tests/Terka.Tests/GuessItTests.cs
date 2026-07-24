@@ -17,6 +17,7 @@ namespace Terka.Tests
             Assert.Equal("GROUP", result.ReleaseGroup);
             Assert.Equal("mkv", result.Container);
             Assert.Equal(MediaType.Movie, result.Type);
+            Assert.True(result.Confidence > 0f, "Confidence should be positive");
         }
 
         [Fact]
@@ -24,7 +25,8 @@ namespace Terka.Tests
         {
             var result = GuessIt.Guess("Shameless.US.S05E10.720p.HDTV.x264-KILLERS.mkv");
 
-            Assert.Equal("Shameless US", result.Title);
+            Assert.Equal("Shameless", result.Title);
+            Assert.Equal("US", result.Country);
             Assert.Contains(5, result.Season);
             Assert.Contains(10, result.Episode);
             Assert.Equal("720p", result.ScreenSize);

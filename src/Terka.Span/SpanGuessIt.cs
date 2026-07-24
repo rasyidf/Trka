@@ -17,6 +17,9 @@ public static class SpanGuessIt
     private static readonly FrozenDictionary<string, string> LanguageMap =
         Vocabulary.Languages.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly FrozenDictionary<string, string> CountryMap =
+        Vocabulary.Countries.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Guess media properties from a filename using span-based parsing.
     /// </summary>
@@ -290,9 +293,38 @@ public static class SpanGuessIt
         // Title: leading unmatched non-bracket tokens
         ExtractTitle(name, tokens, tokenCount, result);
 
+        // Country detection: last word of title if it's a known country code (only for episodes)
+        if ((result.HasSeason || result.HasEpisode) && result.Title != null)
+        {
+            var lastSpace = result.Title.LastIndexOf(' ');
+            if (lastSpace > 0)
+            {
+                var lastWord = result.Title.AsSpan(lastSpace + 1);
+                var country = SpanDictLookup.Lookup(lastWord, CountryMap);
+                if (country != null)
+                {
+                    result.Country = country;
+                    result.Title = result.Title.Substring(0, lastSpace);
+                }
+            }
+        }
+
         // Determine type
         result.Type = (result.HasSeason || result.HasEpisode || result.HasAbsoluteEpisode)
             ? MediaType.Episode : MediaType.Movie;
+
+        // Confidence: ratio of matched tokens to total non-bracket tokens
+        int totalTokens = 0;
+        int matchedTokens = 0;
+        for (int i = 0; i < tokenCount; i++)
+        {
+            if (!tokens[i].IsBracket)
+            {
+                totalTokens++;
+                if (tokens[i].Matched) matchedTokens++;
+            }
+        }
+        result.Confidence = totalTokens > 0 ? (float)matchedTokens / totalTokens : 0f;
 
         return result;
     }

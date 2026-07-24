@@ -45,8 +45,10 @@ public sealed class SpanGuessResult
 
     public string? StreamingService { get; set; }
     public string? ColorDepth { get; set; }
+    public string? Country { get; set; }
     public string? Language { get; set; }
     public string? Crc32 { get; set; }
+    public float Confidence { get; set; }
 
     /// <summary>
     /// Returns a dictionary representation, omitting null/empty values.
@@ -88,7 +90,9 @@ public sealed class SpanGuessResult
         if (!string.IsNullOrEmpty(Mimetype)) dict["mimetype"] = Mimetype;
         if (!string.IsNullOrEmpty(StreamingService)) dict["streaming_service"] = StreamingService;
         if (!string.IsNullOrEmpty(ColorDepth)) dict["color_depth"] = ColorDepth;
+        if (!string.IsNullOrEmpty(Country)) dict["country"] = Country;
         if (!string.IsNullOrEmpty(Language)) dict["language"] = Language;
+        if (Confidence > 0f) dict["confidence"] = Confidence;
 
         if (_edition is { Count: > 0 })
         {

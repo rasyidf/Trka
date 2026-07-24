@@ -80,8 +80,36 @@ namespace Terka
             // Title extraction (collect leading unmatched tokens)
             _titleExtractor.Extract(tokens, result);
 
+            // Country detection
+            if ((result.Season.Count > 0 || result.Episode.Count > 0) && !string.IsNullOrEmpty(result.Title))
+            {
+                var lastSpace = result.Title.LastIndexOf(' ');
+                if (lastSpace > 0)
+                {
+                    var lastWord = result.Title.Substring(lastSpace + 1);
+                    if (Terka.Shared.Vocabulary.Countries.TryGetValue(lastWord, out var country))
+                    {
+                        result.Country = country;
+                        result.Title = result.Title.Substring(0, lastSpace);
+                    }
+                }
+            }
+
             // Determine media type
             result.Type = DetermineType(result, options);
+
+            // Confidence score
+            int totalTokens = 0;
+            int matchedTokens = 0;
+            foreach (var token in tokens)
+            {
+                if (!token.IsBracketGroup)
+                {
+                    totalTokens++;
+                    if (token.Matched) matchedTokens++;
+                }
+            }
+            result.Confidence = totalTokens > 0 ? (float)matchedTokens / totalTokens : 0f;
 
             return result;
         }

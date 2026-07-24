@@ -151,7 +151,6 @@ internal static class Vocabulary
             ["dv"] = "Dolby Vision",
             ["dolbyvision"] = "Dolby Vision",
             ["dual"] = "Dual Audio",
-            ["multi"] = "Dual Audio",
             ["complete"] = "Complete",
             ["internal"] = "Internal",
             ["sample"] = "Sample",
@@ -239,6 +238,7 @@ internal static class Vocabulary
             ["polish"] = "Polish",
             ["turkish"] = "Turkish",
             ["czech"] = "Czech",
+            ["multi"] = "Multi",
             ["dl"] = "Dual Language",
             ["ger"] = "German",
             ["fre"] = "French",
@@ -252,6 +252,28 @@ internal static class Vocabulary
             ["por"] = "Portuguese",
             ["dut"] = "Dutch",
             ["hin"] = "Hindi",
+        };
+
+    public static readonly IReadOnlyDictionary<string, string> Countries =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["us"] = "US",
+            ["uk"] = "UK",
+            ["au"] = "AU",
+            ["nz"] = "NZ",
+            ["ca"] = "CA",
+            ["de"] = "DE",
+            ["fr"] = "FR",
+            ["jp"] = "JP",
+            ["kr"] = "KR",
+            ["cn"] = "CN",
+            ["br"] = "BR",
+            ["in"] = "IN",
+            ["es"] = "ES",
+            ["it"] = "IT",
+            ["ru"] = "RU",
+            ["nl"] = "NL",
+            ["se"] = "SE",
         };
 
     /// <summary>
